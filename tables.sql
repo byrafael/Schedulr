@@ -189,7 +189,7 @@ CREATE TABLE classes (
   FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE,
   FOREIGN KEY (grade_id) REFERENCES grades(id) ON DELETE SET NULL,
   FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE,
-  UNIQUE (code, semester_id),
+  UNIQUE (code, grade_id, semester_id),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

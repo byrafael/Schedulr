@@ -1,0 +1,338 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Section {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(50)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  grades    Grade[]
+  homerooms Homeroom[]
+  classes   Class[]
+
+  @@map("sections")
+}
+
+model Grade {
+  id        Int       @id @default(autoincrement())
+  sectionId Int       @map("section_id")
+  name      String    @db.VarChar(20)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  section       Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  students      Student[]
+  homeroomGrades HomeroomGrade[]
+  classes       Class[]
+
+  @@unique([sectionId, name])
+  @@map("grades")
+}
+
+model Semester {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(20)
+  startDate DateTime  @map("start_date") @db.Date
+  endDate   DateTime  @map("end_date") @db.Date
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  blocks           Block[]
+  classes          Class[]
+  classSessions    ClassSession[]
+  duties           Duty[]
+  aGroups          AGroup[]
+  scheduleTemplates ScheduleTemplate[]
+
+  @@map("semesters")
+}
+
+model TeacherRoleLookup {
+  id        Int       @id @default(autoincrement())
+  roleName  String    @unique @map("role_name") @db.VarChar(50)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  teacherRoles TeacherRole[]
+
+  @@map("teacher_roles_lookup")
+}
+
+model RoomType {
+  id        Int       @id @default(autoincrement())
+  typeName  String    @unique @map("type_name") @db.VarChar(50)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  rooms     Room[]
+
+  @@map("room_types")
+}
+
+model DutyType {
+  id        Int       @id @default(autoincrement())
+  typeName  String    @unique @map("type_name") @db.VarChar(50)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  duties    Duty[]
+
+  @@map("duty_types")
+}
+
+model Teacher {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  roles             TeacherRole[]
+  homerooms         Homeroom[]
+  duties            Duty[]
+  classSessionTeachers ClassSessionTeacher[]
+
+  @@map("teachers")
+}
+
+model TeacherRole {
+  teacherId Int       @map("teacher_id")
+  roleId    Int       @map("role_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  teacher   Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  role      TeacherRoleLookup @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, roleId])
+  @@map("teacher_roles")
+}
+
+model Homeroom {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(50)
+  sectionId Int       @map("section_id")
+  teacherId Int?      @map("teacher_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  section   Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  teacher   Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  students  Student[]
+  homeroomGrades HomeroomGrade[]
+  aGroups   AGroup[]
+  classSessions ClassSession[]
+
+  @@map("homerooms")
+}
+
+model HomeroomGrade {
+  homeroomId Int       @map("homeroom_id")
+  gradeId    Int       @map("grade_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  homeroom   Homeroom  @relation(fields: [homeroomId], references: [id], onDelete: Cascade)
+  grade      Grade     @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  @@id([homeroomId, gradeId])
+  @@map("homeroom_grades")
+}
+
+model Student {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(100)
+  gradeId    Int       @map("grade_id")
+  homeroomId Int       @map("homeroom_id")
+  isAsLevel  Boolean   @default(false) @map("is_as_level")
+  isALevel   Boolean   @default(false) @map("is_a_level")
+  aGroupId   Int?      @map("a_group_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  grade      Grade     @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  homeroom   Homeroom  @relation(fields: [homeroomId], references: [id], onDelete: Cascade)
+  aGroup     AGroup?   @relation(fields: [aGroupId], references: [id], onDelete: SetNull)
+  studentAGroups StudentAGroup[]
+
+  @@index([gradeId], map: "idx_students_grade_id")
+  @@index([homeroomId], map: "idx_students_homeroom_id")
+  @@map("students")
+}
+
+model AGroup {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(50)
+  homeroomId Int       @map("homeroom_id")
+  semesterId Int       @map("semester_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  homeroom   Homeroom  @relation(fields: [homeroomId], references: [id], onDelete: Cascade)
+  semester   Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  students   Student[]
+  studentAGroups StudentAGroup[]
+
+  @@unique([name, homeroomId, semesterId])
+  @@map("a_groups")
+}
+
+model StudentAGroup {
+  studentId  Int       @map("student_id")
+  aGroupId   Int       @map("a_group_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  aGroup     AGroup    @relation(fields: [aGroupId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, aGroupId])
+  @@map("student_a_groups")
+}
+
+model Room {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(50)
+  typeId    Int       @map("type_id")
+  location  String    @db.VarChar(100)
+  building  String    @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  type      RoomType  @relation(fields: [typeId], references: [id])
+  classSessions ClassSession[]
+  duties    Duty[]
+
+  @@map("rooms")
+}
+
+model Block {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(50)
+  startTime  DateTime  @map("start_time") @db.Time()
+  endTime    DateTime  @map("end_time") @db.Time()
+  isEarly    Boolean   @default(false) @map("is_early")
+  isLate     Boolean   @default(false) @map("is_late")
+  semesterId Int       @map("semester_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  semester   Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  classSessions ClassSession[]
+  duties     Duty[]
+
+  @@unique([name, semesterId])
+  @@map("blocks")
+}
+
+model Class {
+  id         Int       @id @default(autoincrement())
+  code       String    @db.VarChar(50)
+  name       String    @db.VarChar(100)
+  sectionId  Int       @map("section_id")
+  gradeId    Int?      @map("grade_id")
+  semesterId Int       @map("semester_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  section    Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  grade      Grade?    @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+  semester   Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  classSessions ClassSession[]
+
+  @@unique([code, gradeId, semesterId])
+  @@map("classes")
+}
+
+model ClassSession {
+  id         Int       @id @default(autoincrement())
+  classId    Int       @map("class_id")
+  blockId    Int       @map("block_id")
+  dayOfWeek  Int       @map("day_of_week") @db.TinyInt
+  roomId     Int       @map("room_id")
+  semesterId Int       @map("semester_id")
+  homeroomId Int?      @map("homeroom_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  class      Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  block      Block     @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  semester   Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  homeroom   Homeroom? @relation(fields: [homeroomId], references: [id], onDelete: Cascade)
+  teachers   ClassSessionTeacher[]
+  templateEntries TemplateEntry[]
+
+  @@unique([blockId, dayOfWeek, roomId, semesterId])
+  @@map("class_sessions")
+}
+
+model ClassSessionTeacher {
+  id             Int       @id @default(autoincrement())
+  classSessionId Int       @map("class_session_id")
+  teacherId      Int       @map("teacher_id")
+  role           String    @db.VarChar(50)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  
+  classSession   ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  teacher        Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, classSessionId], map: "idx_teacher_schedule_unique")
+  @@map("class_session_teachers")
+}
+
+model Duty {
+  id         Int       @id @default(autoincrement())
+  teacherId  Int       @map("teacher_id")
+  blockId    Int       @map("block_id")
+  dayOfWeek  Int       @map("day_of_week") @db.TinyInt
+  dutyTypeId Int       @map("duty_type_id")
+  roomId     Int       @map("room_id")
+  semesterId Int       @map("semester_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  block      Block     @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  dutyType   DutyType  @relation(fields: [dutyTypeId], references: [id])
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  semester   Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@map("duties")
+}
+
+model ScheduleTemplate {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique @db.VarChar(100)
+  semesterId Int       @map("semester_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  semester   Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  entries    TemplateEntry[]
+
+  @@map("schedule_templates")
+}
+
+model TemplateEntry {
+  id                 Int       @id @default(autoincrement())
+  scheduleTemplateId Int       @map("schedule_template_id")
+  classSessionId     Int       @map("class_session_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  
+  scheduleTemplate   ScheduleTemplate @relation(fields: [scheduleTemplateId], references: [id], onDelete: Cascade)
+  classSession       ClassSession     @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+
+  @@map("template_entries")
+}
